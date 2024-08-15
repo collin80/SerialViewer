@@ -37,5 +37,6 @@ private:
     QSerialPort *serial;
     QTcpSocket *tcpClient;
     QUdpSocket *udpClient;
+    QString serialBuilder;
 };
 #endif // MAINWINDOW_H

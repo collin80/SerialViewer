@@ -159,11 +159,25 @@ void MainWindow::readSerialData()
     if (tcpClient) data = tcpClient->readAll();
     if (udpClient) data = udpClient->readAll();
 
-    data = data.trimmed(); //remove extraneous line breaks that would otherwise be bothersome
-
     qDebug() << ("Got data from serial. Len = " + QString::number(data.length()));
 
-    ui->txtMainView->appendPlainText(data);
+    //unfortunately, the text widget being used automatically adds line breaks at the end of each
+    //append you do but the serial interface can send partial lines so it is necessary
+    //to buffer the input and only send once we see a line break and then only to the last line break
+    serialBuilder.append(data);
+    serialBuilder = serialBuilder.remove('\r');
+    int lastBreak = serialBuilder.lastIndexOf('\n');
+    if (lastBreak > 0)
+    {
+        //send up to that last line break we found
+        ui->txtMainView->appendPlainText(serialBuilder.left(lastBreak));
+        //then remove all that from the buffer leaving only the potentially
+        //partial line behind
+        serialBuilder = serialBuilder.right(serialBuilder.length() - lastBreak - 1);
+        qDebug() << "Left over:" << serialBuilder;
+    }
+
+
 }
 
 void MainWindow::handleSendText()
