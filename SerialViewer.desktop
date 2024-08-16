@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=SerialViewer
+GenericName=EVTV Serial Viewer
+Comment=Allows easy access to serial consoles on EVTV boards (and likely many others)
+Exec=SerialViewer
+Icon=SerialViewer
+Terminal=false
+Categories=Development;Electronics;IDE;
+MimeType=text/x-application;
+Keywords=embedded electronics;electronics;serial;
