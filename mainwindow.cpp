@@ -1,9 +1,10 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
-#include <qt5/QtSerialPort/QSerialPortInfo>
-
-#include <qt5/QtWidgets/QFileDialog>
+#include <QtSerialPort/QSerialPortInfo>
+#include <QtWidgets/QFileDialog>
+#include <QtNetwork/QNetworkDatagram>
+#include <QtCore/QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,20 +14,26 @@ MainWindow::MainWindow(QWidget *parent)
 
     serial = nullptr;
     tcpClient = nullptr;
-    udpClient = nullptr;
+    rxBroadcastGVRET = nullptr;
 
-    QList<QSerialPortInfo> ports;
-
-    ui->listPorts->clear();
-    ports = QSerialPortInfo::availablePorts();
-
-    for (int i = 0; i < ports.count(); i++)
-        ui->listPorts->addItem(ports[i].portName());
+    refreshSerialList();
 
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::handleConnectButton);
     connect(ui->btnClear, &QPushButton::clicked, this, &MainWindow::handleClearButton);
     connect(ui->btnSave, &QPushButton::clicked, this, &MainWindow::handleSaveButton);
     connect(ui->lineSend, &QLineEdit::editingFinished, this, &MainWindow::handleSendText);
+
+    serialRefreshTimer.setInterval(5000);
+    serialRefreshTimer.setTimerType(Qt::CoarseTimer);
+    serialRefreshTimer.start();
+    connect(&serialRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshSerialList);
+
+    rxBroadcastGVRET = new QUdpSocket(this);
+    //Need to make sure it tries to share the address in case there are
+    //multiple instances of SavvyCAN running.
+    rxBroadcastGVRET->bind(QHostAddress::AnyIPv4, 17222, QAbstractSocket::ShareAddress);
+    connect(rxBroadcastGVRET, &QUdpSocket::readyRead, this, &MainWindow::readPendingDatagrams);
+
 }
 
 MainWindow::~MainWindow()
@@ -39,6 +46,25 @@ void MainWindow::handleClearButton()
     ui->txtMainView->clear();
 }
 
+void MainWindow::refreshSerialList()
+{
+    qDebug() << "Ping!";
+
+    QList<QSerialPortInfo> ports;
+
+    ports = QSerialPortInfo::availablePorts();
+
+    ui->listPorts->clear();
+
+    foreach(QString IP, remoteDeviceIPGVRET.keys())
+    {
+        QString name = remoteDeviceIPGVRET.value(IP);
+        ui->listPorts->addItem(IP + "  [" + name + "]");
+    }
+
+    for (int i = 0; i < ports.count(); i++)
+        ui->listPorts->addItem(ports[i].portName());
+}
 void MainWindow::handleConnectButton()
 {
     QString portName = ui->listPorts->currentItem()->text();
@@ -73,6 +99,19 @@ void MainWindow::handleConnectButton()
         //serial->setRequestToSend(false);
     }
 
+}
+
+void MainWindow::readPendingDatagrams()
+{
+    qDebug() << "Got a UDP frame!";
+    while (rxBroadcastGVRET->hasPendingDatagrams()) {
+        QNetworkDatagram datagram = rxBroadcastGVRET->receiveDatagram();
+        if (!remoteDeviceIPGVRET.contains(datagram.senderAddress().toString()))
+        {
+            remoteDeviceIPGVRET.insert(datagram.senderAddress().toString(), QString(datagram.data()));
+            qDebug() << "Add new remote IP " << datagram.senderAddress().toString();
+        }
+    }
 }
 
 void MainWindow::serialError(QSerialPort::SerialPortError err)
@@ -157,7 +196,6 @@ void MainWindow::readSerialData()
 
     if (serial) data = serial->readAll();
     if (tcpClient) data = tcpClient->readAll();
-    if (udpClient) data = udpClient->readAll();
 
     qDebug() << ("Got data from serial. Len = " + QString::number(data.length()));
 

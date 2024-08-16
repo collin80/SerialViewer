@@ -2,11 +2,11 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>
 
-#include <qt5/QtSerialPort/QSerialPort>
-
-#include <qt5/QtNetwork/QTcpSocket>
-#include <qt5/QtNetwork/QUdpSocket>
+#include <QtSerialPort/QSerialPort>
+#include <QtNetwork/QTcpSocket>
+#include <QtNetwork/QUdpSocket>
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -31,12 +31,16 @@ public slots:
 private slots:
     void readSerialData();
     void serialError(QSerialPort::SerialPortError err);
+    void readPendingDatagrams();
+    void refreshSerialList();
 
 private:
     Ui::MainWindow *ui;
     QSerialPort *serial;
     QTcpSocket *tcpClient;
-    QUdpSocket *udpClient;
+    QUdpSocket *rxBroadcastGVRET;
     QString serialBuilder;
+    QHash<QString, QString> remoteDeviceIPGVRET;
+    QTimer serialRefreshTimer;
 };
 #endif // MAINWINDOW_H
