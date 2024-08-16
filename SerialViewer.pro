@@ -23,6 +23,17 @@ TRANSLATIONS += \
 CONFIG += lrelease
 CONFIG += embed_translations
 
+unix {
+   isEmpty(PREFIX) {
+      PREFIX=/usr/local
+   }
+   target.path = $$PREFIX/bin
+   shortcutfiles.files=SerialViewer.desktop
+   shortcutfiles.path = $$PREFIX/share/applications
+   INSTALLS += shortcutfiles
+   DISTFILES += SerialViewer.desktop
+}
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
