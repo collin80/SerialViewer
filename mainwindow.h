@@ -33,6 +33,9 @@ private slots:
     void serialError(QSerialPort::SerialPortError err);
     void readPendingDatagrams();
     void refreshSerialList();
+    void portChanged();
+    void disconnectPort();
+    void deviceConnected();
 
 private:
     Ui::MainWindow *ui;

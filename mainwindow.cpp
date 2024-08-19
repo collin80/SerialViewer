@@ -22,8 +22,10 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnClear, &QPushButton::clicked, this, &MainWindow::handleClearButton);
     connect(ui->btnSave, &QPushButton::clicked, this, &MainWindow::handleSaveButton);
     connect(ui->lineSend, &QLineEdit::editingFinished, this, &MainWindow::handleSendText);
+    connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::disconnectPort);
+    connect(ui->listPorts, &QListWidget::currentItemChanged, this, &MainWindow::portChanged);
 
-    serialRefreshTimer.setInterval(5000);
+    serialRefreshTimer.setInterval(2000);
     serialRefreshTimer.setTimerType(Qt::CoarseTimer);
     serialRefreshTimer.start();
     connect(&serialRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshSerialList);
@@ -33,6 +35,9 @@ MainWindow::MainWindow(QWidget *parent)
     //multiple instances of SavvyCAN running.
     rxBroadcastGVRET->bind(QHostAddress::AnyIPv4, 17222, QAbstractSocket::ShareAddress);
     connect(rxBroadcastGVRET, &QUdpSocket::readyRead, this, &MainWindow::readPendingDatagrams);
+
+    //only need this in the special case of network devices that present serial interfaces
+    ui->groupPort->setVisible(false);
 
 }
 
@@ -46,59 +51,148 @@ void MainWindow::handleClearButton()
     ui->txtMainView->clear();
 }
 
+void MainWindow::portChanged()
+{
+    QString currText = ui->listPorts->currentItem()->text();
+    if (currText.contains("[")) //it's a network interface
+    {
+        ui->groupPort->setVisible(true);
+        ui->groupSpeed->setVisible(false);
+    }
+    else //it's a direct serial interface
+    {
+        ui->groupPort->setVisible(false);
+        ui->groupSpeed->setVisible(true);
+    }
+}
+
+void MainWindow::disconnectPort()
+{
+    ui->lblStatus->setText("Not Connected");
+
+    if (serial != nullptr)
+    {
+        if (serial->isOpen())
+        {
+            //serial->clear();
+            serial->close();
+
+        }
+        serial->disconnect(); //disconnect all signals
+        delete serial;
+        serial = nullptr;
+    }
+
+    if (tcpClient != nullptr)
+    {
+        if (tcpClient->isOpen())
+        {
+            tcpClient->close();
+        }
+        tcpClient->disconnect();
+        delete tcpClient;
+        tcpClient = nullptr;
+    }
+}
+
+/*
+ * Grabs any new serial ports that show up and adds them. Currently does not
+ * remove ports from the list if they disappear from the computer. Might be a good
+ * idea to do that eventually. Would have to track which were seen and which were not.
+ */
 void MainWindow::refreshSerialList()
 {
-    qDebug() << "Ping!";
+    //qDebug() << "Ping!";
 
     QList<QSerialPortInfo> ports;
 
     ports = QSerialPortInfo::availablePorts();
 
-    ui->listPorts->clear();
-
     foreach(QString IP, remoteDeviceIPGVRET.keys())
     {
         QString name = remoteDeviceIPGVRET.value(IP);
-        ui->listPorts->addItem(IP + "  [" + name + "]");
+        //only add it if it isn't already in there.
+        if (ui->listPorts->findItems(IP, Qt::MatchContains).count() == 0)
+            ui->listPorts->addItem(IP + "  [" + name + "]");
     }
 
     for (int i = 0; i < ports.count(); i++)
-        ui->listPorts->addItem(ports[i].portName());
+    {
+        if (ui->listPorts->findItems(ports[i].portName(), Qt::MatchContains).count() == 0)
+            ui->listPorts->addItem(ports[i].portName());
+    }
 }
 void MainWindow::handleConnectButton()
 {
     QString portName = ui->listPorts->currentItem()->text();
-    serial = new QSerialPort(QSerialPortInfo(portName));
-    if(!serial) {
-        qDebug() << ("can't open serial port " + portName);
-        return;
-    }
-    qDebug() << ("Created Serial Port Object");
 
-    /* connect reading event */
-    connect(serial, SIGNAL(readyRead()), this, SLOT(readSerialData()));
-    //connect(serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(serialError(QSerialPort::SerialPortError)));
+    //we're only connecting to a single connection so disconnect anything open before continuing
+    if(serial)
+        disconnectPort();
+    if(tcpClient)
+        disconnectPort();
 
-    int speed = 115200;
-
-    if (ui->rbMega->isChecked()) speed = 1000000;
-
-    /* configure */
-    serial->setBaudRate(speed);
-    serial->setDataBits(serial->Data8);
-
-    serial->setFlowControl(serial->NoFlowControl);
-    //serial->setFlowControl(serial->HardwareControl);
-    if (!serial->open(QIODevice::ReadWrite))
+    //Now figure out whether it's a serial port or a network port
+    if (portName.contains("[")) //network port
     {
-        qDebug() << ("Error returned during port opening: " + serial->errorString());
+        int port = 23;
+        if (ui->rbTelnet->isChecked()) port = 23;
+        if (ui->rbAlternate->isChecked()) port = 2323;
+        if (ui->rbCustom->isChecked())
+        {
+            port = ui->lineCustomPort->text().toInt();
+            if (port == 0) port = 23;
+        }
+        QString ipAddr = portName.split(" ")[0];
+        qDebug() << ("TCP Connection to a remote device");
+        tcpClient = new QTcpSocket();
+        tcpClient->connectToHost(ipAddr, port);
+        connect(tcpClient, SIGNAL(readyRead()), this, SLOT(readSerialData()));
+        connect(tcpClient, SIGNAL(connected()), this, SLOT(deviceConnected()));
+        qDebug() << ("Created TCP Socket");
     }
-    else
+    else //serial port
     {
-        //serial->setDataTerminalReady(false); //ESP32 uses these for bootloader selection and reset so turn them off
-        //serial->setRequestToSend(false);
-    }
+        serial = new QSerialPort(QSerialPortInfo(portName));
+        if(!serial) {
+            qDebug() << ("can't open serial port " + portName);
+            return;
+        }
+        qDebug() << ("Created Serial Port Object");
 
+        /* connect reading event */
+        connect(serial, SIGNAL(readyRead()), this, SLOT(readSerialData()));
+        connect(serial, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(serialError(QSerialPort::SerialPortError)));
+
+        int speed = 115200;
+
+        if (ui->rbMega->isChecked()) speed = 1000000;
+        if (ui->rbCustomSpeed->isChecked()) speed = ui->lineCustomSpeed->text().toInt();
+        if (speed < 300) speed = 115200; //a sane value if something stupidly low was set
+
+        /* configure */
+        serial->setBaudRate(speed);
+        serial->setDataBits(serial->Data8);
+
+        serial->setFlowControl(serial->NoFlowControl);
+        //serial->setFlowControl(serial->HardwareControl);
+        if (!serial->open(QIODevice::ReadWrite))
+        {
+            qDebug() << ("Error returned during port opening: " + serial->errorString());
+            return;
+        }
+        else
+        {
+            //serial->setDataTerminalReady(false); //ESP32 uses these for bootloader selection and reset so turn them off
+            //serial->setRequestToSend(false);
+        }
+        ui->lblStatus->setText("Connected to " + portName);
+    }
+}
+
+void MainWindow::deviceConnected()
+{
+    ui->lblStatus->setText("Connected to " + ui->listPorts->currentItem()->text());
 }
 
 void MainWindow::readPendingDatagrams()
@@ -172,21 +266,21 @@ void MainWindow::serialError(QSerialPort::SerialPortError err)
         killConnection = true;
         break;
     }
-    /*
+
     if (serial)
     {
         serial->clearError();
         serial->flush();
         serial->close();
-    }*/
+    }
     if (errMessage.length() > 1)
     {
         qDebug() << errMessage;
     }
     if (killConnection)
     {
-        qDebug() << "Shooting the serial object in the head. It deserves it.";
-        //disconnectDevice();
+        qDebug() << "Killing the serial object. It is no longer needed";
+        disconnectPort();
     }
 }
 
@@ -196,6 +290,7 @@ void MainWindow::readSerialData()
 
     if (serial) data = serial->readAll();
     if (tcpClient) data = tcpClient->readAll();
+
 
     qDebug() << ("Got data from serial. Len = " + QString::number(data.length()));
 
@@ -214,18 +309,35 @@ void MainWindow::readSerialData()
         serialBuilder = serialBuilder.right(serialBuilder.length() - lastBreak - 1);
         qDebug() << "Left over:" << serialBuilder;
     }
-
-
 }
 
 void MainWindow::handleSendText()
 {
+    if (serial == nullptr && tcpClient == nullptr)
+    {
+        qDebug() << "Attempt to write to serial port when it has not been initialized!";
+        return;
+    }
+
+    if (serial && !serial->isOpen())
+    {
+        qDebug() << ("Attempt to write to serial port when it is not open!");
+        return;
+    }
+
+    if (tcpClient && !tcpClient->isOpen())
+    {
+        qDebug() << ("Attempt to write to TCP/IP port when it is not open!");
+        return;
+    }
+
     QByteArray sendtxt = ui->lineSend->text().toUtf8() + "\n";
 
     if (serial) serial->write(sendtxt);
+    if (tcpClient) tcpClient->write(sendtxt);
     qDebug() << "Sending this to serial port: " << sendtxt;
 
-    ui->lineSend->clear();
+    ui->lineSend->clear();    
 }
 
 void MainWindow::handleSaveButton()

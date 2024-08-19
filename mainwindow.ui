@@ -28,7 +28,46 @@
        <widget class="QListWidget" name="listPorts"/>
       </item>
       <item>
-       <widget class="QGroupBox" name="groupBox">
+       <widget class="QGroupBox" name="groupPort">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="title">
+         <string>Port</string>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_4">
+         <item>
+          <widget class="QRadioButton" name="rbTelnet">
+           <property name="text">
+            <string>23 (Telnet)</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="rbAlternate">
+           <property name="text">
+            <string>2323 (Alternative)</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QRadioButton" name="rbCustom">
+           <property name="text">
+            <string>Custom</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineCustomPort"/>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="groupSpeed">
         <property name="title">
          <string>Speed</string>
         </property>
@@ -50,6 +89,16 @@
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QRadioButton" name="rbCustomSpeed">
+           <property name="text">
+            <string>Custom Speed</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineCustomSpeed"/>
+         </item>
         </layout>
        </widget>
       </item>
@@ -57,6 +106,13 @@
        <widget class="QPushButton" name="btnConnect">
         <property name="text">
          <string>Connect</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnDisconnect">
+        <property name="text">
+         <string>Disconnect</string>
         </property>
        </widget>
       </item>
@@ -71,6 +127,21 @@
     </item>
     <item>
      <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="QLabel" name="lblStatus">
+        <property name="font">
+         <font>
+          <pointsize>15</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>Not Connected</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignCenter</set>
+        </property>
+       </widget>
+      </item>
       <item>
        <widget class="QPlainTextEdit" name="txtMainView">
         <property name="verticalScrollBarPolicy">
