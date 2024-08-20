@@ -24,6 +24,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->lineSend, &QLineEdit::editingFinished, this, &MainWindow::handleSendText);
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::disconnectPort);
     connect(ui->listPorts, &QListWidget::currentItemChanged, this, &MainWindow::portChanged);
+    connect(ui->lineCustomDevice, &QLineEdit::textChanged, this, &MainWindow::portChanged);
 
     serialRefreshTimer.setInterval(2000);
     serialRefreshTimer.setTimerType(Qt::CoarseTimer);
@@ -54,7 +55,7 @@ void MainWindow::handleClearButton()
 void MainWindow::portChanged()
 {
     QString currText = ui->listPorts->currentItem()->text();
-    if (currText.contains("[")) //it's a network interface
+    if (currText.contains("[") || ui->lineCustomDevice->text().length() > 3) //it's a network interface
     {
         ui->groupPort->setVisible(true);
         ui->groupSpeed->setVisible(false);
@@ -124,7 +125,8 @@ void MainWindow::refreshSerialList()
 }
 void MainWindow::handleConnectButton()
 {
-    QString portName = ui->listPorts->currentItem()->text();
+    QString portName = "";
+    if (ui->listPorts->currentRow() > -1) portName = ui->listPorts->currentItem()->text();
 
     //we're only connecting to a single connection so disconnect anything open before continuing
     if(serial)
@@ -133,7 +135,7 @@ void MainWindow::handleConnectButton()
         disconnectPort();
 
     //Now figure out whether it's a serial port or a network port
-    if (portName.contains("[")) //network port
+    if (portName.contains("[") || ui->lineCustomDevice->text().length() > 3) //network port
     {
         int port = 23;
         if (ui->rbTelnet->isChecked()) port = 23;
@@ -143,7 +145,10 @@ void MainWindow::handleConnectButton()
             port = ui->lineCustomPort->text().toInt();
             if (port == 0) port = 23;
         }
-        QString ipAddr = portName.split(" ")[0];
+        QString ipAddr;
+        if (ui->lineCustomDevice->text().length() > 3) ipAddr = ui->lineCustomDevice->text();
+        else ipAddr = portName.split(" ")[0];
+        if (ipAddr.length() < 3) return;
         qDebug() << ("TCP Connection to a remote device");
         tcpClient = new QTcpSocket();
         tcpClient->connectToHost(ipAddr, port);
@@ -153,6 +158,7 @@ void MainWindow::handleConnectButton()
     }
     else //serial port
     {
+        if (portName.length() < 2) return;
         serial = new QSerialPort(QSerialPortInfo(portName));
         if(!serial) {
             qDebug() << ("can't open serial port " + portName);
@@ -192,7 +198,8 @@ void MainWindow::handleConnectButton()
 
 void MainWindow::deviceConnected()
 {
-    ui->lblStatus->setText("Connected to " + ui->listPorts->currentItem()->text());
+    if (ui->lineCustomDevice->text().length() > 3) ui->lblStatus->setText("Connected to " + ui->lineCustomDevice->text());
+    else ui->lblStatus->setText("Connected to " + ui->listPorts->currentItem()->text());
 }
 
 void MainWindow::readPendingDatagrams()

@@ -20,12 +20,15 @@
       <item>
        <widget class="QLabel" name="label">
         <property name="text">
-         <string>Port</string>
+         <string>Device List</string>
         </property>
        </widget>
       </item>
       <item>
        <widget class="QListWidget" name="listPorts"/>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="lineCustomDevice"/>
       </item>
       <item>
        <widget class="QGroupBox" name="groupPort">
