@@ -54,7 +54,8 @@ void MainWindow::handleClearButton()
 
 void MainWindow::portChanged()
 {
-    QString currText = ui->listPorts->currentItem()->text();
+    QString currText;
+    if (ui->listPorts->currentRow() > -1) currText = ui->listPorts->currentItem()->text();
     if (currText.contains("[") || ui->lineCustomDevice->text().length() > 3) //it's a network interface
     {
         ui->groupPort->setVisible(true);
