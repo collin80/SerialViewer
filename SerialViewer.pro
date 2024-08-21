@@ -33,6 +33,10 @@ unix {
    DISTFILES += SerialViewer.desktop
 }
 
+windows {
+RC_ICONS=icons/SerialViewer.ico
+}
+
 iconfiles.files=icons
 iconfiles.path = $$PREFIX/share/icons
 INSTALLS += iconfiles
