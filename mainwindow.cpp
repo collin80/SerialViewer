@@ -31,6 +31,11 @@ MainWindow::MainWindow(QWidget *parent)
     serialRefreshTimer.start();
     connect(&serialRefreshTimer, &QTimer::timeout, this, &MainWindow::refreshSerialList);
 
+    normalFormat = ui->txtMainView->currentCharFormat();
+    sentFormat = normalFormat;
+    sentFormat.setFontWeight(1000);
+    sentFormat.setForeground(Qt::red);
+
     rxBroadcastGVRET = new QUdpSocket(this);
     //Need to make sure it tries to share the address in case there are
     //multiple instances of SavvyCAN running.
@@ -308,6 +313,7 @@ void MainWindow::readSerialData()
     serialBuilder.append(data);
     serialBuilder = serialBuilder.remove('\r');
     int lastBreak = serialBuilder.lastIndexOf('\n');
+    ui->txtMainView->setCurrentCharFormat(normalFormat);
     if (lastBreak > 0)
     {
         //send up to that last line break we found
@@ -344,7 +350,8 @@ void MainWindow::handleSendText()
     if (serial) serial->write(sendtxt);
     if (tcpClient) tcpClient->write(sendtxt);
     qDebug() << "Sending this to serial port: " << sendtxt;
-
+    ui->txtMainView->setCurrentCharFormat(sentFormat);
+    ui->txtMainView->appendPlainText(sendtxt);
     ui->lineSend->clear();    
 }
 

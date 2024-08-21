@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTextCharFormat>
 #include <QTimer>
 
 #include <QtSerialPort/QSerialPort>
@@ -45,5 +46,7 @@ private:
     QString serialBuilder;
     QHash<QString, QString> remoteDeviceIPGVRET;
     QTimer serialRefreshTimer;
+    QTextCharFormat normalFormat;
+    QTextCharFormat sentFormat;
 };
 #endif // MAINWINDOW_H
