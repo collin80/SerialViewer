@@ -143,13 +143,13 @@ void MainWindow::handleConnectButton()
     //Now figure out whether it's a serial port or a network port
     if (portName.contains("[") || ui->lineCustomDevice->text().length() > 3) //network port
     {
-        int port = 23;
-        if (ui->rbTelnet->isChecked()) port = 23;
-        if (ui->rbAlternate->isChecked()) port = 2323;
+        connectedPort = 23;
+        if (ui->rbTelnet->isChecked()) connectedPort = 23;
+        if (ui->rbAlternate->isChecked()) connectedPort = 2323;
         if (ui->rbCustom->isChecked())
         {
-            port = ui->lineCustomPort->text().toInt();
-            if (port == 0) port = 23;
+            connectedPort = ui->lineCustomPort->text().toInt();
+            if (connectedPort == 0) connectedPort = 23;
         }
         QString ipAddr;
         if (ui->lineCustomDevice->text().length() > 3) ipAddr = ui->lineCustomDevice->text();
@@ -157,7 +157,7 @@ void MainWindow::handleConnectButton()
         if (ipAddr.length() < 3) return;
         qDebug() << ("TCP Connection to a remote device");
         tcpClient = new QTcpSocket();
-        tcpClient->connectToHost(ipAddr, port);
+        tcpClient->connectToHost(ipAddr, connectedPort);
         connect(tcpClient, SIGNAL(readyRead()), this, SLOT(readSerialData()));
         connect(tcpClient, SIGNAL(connected()), this, SLOT(deviceConnected()));
         qDebug() << ("Created TCP Socket");
@@ -204,8 +204,11 @@ void MainWindow::handleConnectButton()
 
 void MainWindow::deviceConnected()
 {
-    if (ui->lineCustomDevice->text().length() > 3) ui->lblStatus->setText("Connected to " + ui->lineCustomDevice->text());
-    else ui->lblStatus->setText("Connected to " + ui->listPorts->currentItem()->text());
+    QString txt;
+    if (ui->lineCustomDevice->text().length() > 3) txt.append("Connected to " + ui->lineCustomDevice->text());
+    else txt.append("Connected to " + ui->listPorts->currentItem()->text());
+    txt.append(" Port " + QString::number(connectedPort));
+    ui->lblStatus->setText(txt);
 }
 
 void MainWindow::readPendingDatagrams()

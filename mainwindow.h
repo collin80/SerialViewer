@@ -48,5 +48,6 @@ private:
     QTimer serialRefreshTimer;
     QTextCharFormat normalFormat;
     QTextCharFormat sentFormat;
+    int connectedPort;
 };
 #endif // MAINWINDOW_H
