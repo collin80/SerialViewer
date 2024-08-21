@@ -21,7 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->btnConnect, &QPushButton::clicked, this, &MainWindow::handleConnectButton);
     connect(ui->btnClear, &QPushButton::clicked, this, &MainWindow::handleClearButton);
     connect(ui->btnSave, &QPushButton::clicked, this, &MainWindow::handleSaveButton);
-    connect(ui->lineSend, &QLineEdit::editingFinished, this, &MainWindow::handleSendText);
+    connect(ui->lineSend, &QLineEdit::returnPressed, this, &MainWindow::handleSendText);
     connect(ui->btnDisconnect, &QPushButton::clicked, this, &MainWindow::disconnectPort);
     connect(ui->listPorts, &QListWidget::currentItemChanged, this, &MainWindow::portChanged);
     connect(ui->lineCustomDevice, &QLineEdit::textChanged, this, &MainWindow::portChanged);
